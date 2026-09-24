@@ -190,11 +190,34 @@ class EytzingerGabrielHornTree:
 
     def batch_point_query(self, indices: np.ndarray, epsilon: float = 0.0) -> np.ndarray:
         """
-        Vectorized batch point query over flat buffer.
+        High-throughput batch point query directly iterating over flat contiguous memory buffers.
         """
         idx_arr = np.asarray(indices, dtype=np.int32)
-        out = np.empty(len(idx_arr), dtype=np.float64)
-        for i, idx in enumerate(idx_arr):
-            v, _ = self.point_query(int(idx), epsilon=epsilon)
-            out[i] = v
+        M = len(idx_arr)
+        out = np.empty(M, dtype=np.float64)
+
+        tree_size = self.tree_size
+        values = self.values
+        energies = self.subtree_energies
+        starts = self.starts
+        ends = self.ends
+        is_leaf = self.is_leaf
+
+        for q_idx in range(M):
+            idx = idx_arr[q_idx]
+            curr = 0
+            val = values[0]
+
+            while curr < tree_size:
+                val = values[curr]
+                if energies[curr] <= epsilon or is_leaf[curr]:
+                    break
+                mid = (starts[curr] + ends[curr]) >> 1
+                if idx < mid:
+                    curr = (curr << 1) + 1
+                else:
+                    curr = (curr << 1) + 2
+
+            out[q_idx] = val
+
         return out

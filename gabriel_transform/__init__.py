@@ -40,6 +40,11 @@ from gabriel_transform.streaming import (
     StreamingGabrielTransform,
     StreamingHornBlock,
 )
+from gabriel_transform.multipole import (
+    GabrielMultipoleTree,
+    GabrielMassCluster,
+    direct_nbody_potential,
+)
 from gabriel_transform.functional import (
     FunctionalGabrielTransform,
     ContinuousHornBasis,
@@ -84,6 +89,10 @@ __all__ = [
     # Streaming
     "StreamingGabrielTransform",
     "StreamingHornBlock",
+    # Multipole Physics
+    "GabrielMultipoleTree",
+    "GabrielMassCluster",
+    "direct_nbody_potential",
     # Functional & Operators
     "FunctionalGabrielTransform",
     "ContinuousHornBasis",
