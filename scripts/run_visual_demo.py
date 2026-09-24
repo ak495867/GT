@@ -107,6 +107,6 @@ if __name__ == "__main__":
     run_all_visualizations(".")
 
     # Also save in artifact directory if accessible
-    artifact_dir = r"C:\Users\Ak\.gemini\antigravity\brain\ba02297a-c9f0-482e-bfe8-45ef7cde266b"
+    artifact_dir = r"/artifacts"
     if os.path.exists(artifact_dir):
         run_all_visualizations(artifact_dir)
