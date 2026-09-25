@@ -1,41 +1,21 @@
-"""
-Gabriel Fast Multipole Engine (G-FMM).
-
-Applies the Gabriel Horn Torricelli-decay formalization to N-body physical fields
-(gravitational, electrostatic, and acoustic potential summation):
-    Phi(y) = sum_{j=1}^N (m_j) / ||y - x_j||
-Direct summation requires O(M * N) operations.
-The Gabriel Multipole Tree groups distant sources into hierarchical horn multipoles
-where residual field error decays as:
-    ||Residual_k|| <= C * q^k  or  C / (1 + alpha * r)^gamma
-enabling field evaluation in:
-    O(M * log N + M * log(1/eps))
-"""
-
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 import numpy as np
 
 
 class GabrielMassCluster:
-    """A cluster of point masses in a Gabriel Multipole Tree node."""
-
     def __init__(self, indices: np.ndarray, positions: np.ndarray, masses: np.ndarray):
         self.indices = indices
         self.count = len(indices)
         self.total_mass = float(np.sum(masses))
 
-        # Center of mass (monopole center)
         if self.total_mass > 0:
             self.center_of_mass = np.sum(positions * masses[:, np.newaxis], axis=0) / self.total_mass
         else:
             self.center_of_mass = np.mean(positions, axis=0)
 
-        # Cluster spatial bounding radius from center of mass
         diffs = positions - self.center_of_mass
         dists = np.linalg.norm(diffs, axis=1)
         self.radius = float(np.max(dists)) if len(dists) > 0 else 0.0
-
-        # Subtree residual multipole bound (dipole/quadrupole residual energy)
         self.residual_energy = self.total_mass * (self.radius ** 2)
 
         self.left: Optional["GabrielMassCluster"] = None
@@ -44,10 +24,6 @@ class GabrielMassCluster:
 
 
 class GabrielMultipoleTree:
-    """
-    Hierarchical Gabriel Horn tree for fast potential evaluations.
-    """
-
     def __init__(self, max_leaf_size: int = 16, q: float = 0.5):
         self.max_leaf_size = max_leaf_size
         self.q = q
@@ -87,14 +63,12 @@ class GabrielMultipoleTree:
                 cluster.is_leaf = True
                 return cluster
 
-            # Split along coordinate axis of largest variance
             variances = np.var(sub_pos, axis=0)
             split_axis = int(np.argmax(variances))
             axis_coords = sub_pos[:, split_axis]
             median_val = np.median(axis_coords)
 
             left_mask = axis_coords <= median_val
-            # Prevent degenerate empty partitions
             if np.all(left_mask) or not np.any(left_mask):
                 mid = len(idx_subset) // 2
                 left_idx = idx_subset[:mid]
@@ -117,25 +91,10 @@ class GabrielMultipoleTree:
         theta: float = 0.5,
         softening: float = 1e-6,
     ) -> Tuple[float, int]:
-        """
-        Evaluates gravitational/electrostatic potential at target_point.
-
-        Args:
-            target_point: Coordinate in R^d
-            epsilon: Precision tolerance
-            theta: Barnes-Hut / Gabriel opening angle threshold
-            softening: Numerical softening parameter to avoid division by zero
-
-        Returns:
-            (potential, interactions_computed)
-        Complexity:
-            O(log N + log(1/eps)) operations per target.
-        """
         y = np.asarray(target_point, dtype=np.float64)
         pot = 0.0
         interactions = 0
 
-        # Stack traversal
         stack = [self.root]
 
         while stack:
@@ -146,13 +105,9 @@ class GabrielMultipoleTree:
             r_vec = y - curr.center_of_mass
             dist = float(np.linalg.norm(r_vec)) + softening
 
-            # Gabriel Horn multipole acceptance criterion:
-            # 1. Opening angle ratio: radius / dist < theta
-            # 2. Far-field relative dipole/quadrupole bound decays geometrically
             opening_angle = curr.radius / dist
             if (opening_angle < theta) or curr.is_leaf:
                 if curr.is_leaf:
-                    # Direct summation over small leaf
                     leaf_pos = self.positions[curr.indices]
                     leaf_m = self.masses[curr.indices]
                     diffs = y - leaf_pos
@@ -160,11 +115,9 @@ class GabrielMultipoleTree:
                     pot += float(np.sum(leaf_m / dists))
                     interactions += len(curr.indices)
                 else:
-                    # Far-field multipole approximation (center of mass)
                     pot += curr.total_mass / dist
                     interactions += 1
             else:
-                # Open node down the horn
                 if curr.right:
                     stack.append(curr.right)
                 if curr.left:
@@ -178,7 +131,6 @@ class GabrielMultipoleTree:
         epsilon: float = 1e-4,
         theta: float = 0.5,
     ) -> Tuple[np.ndarray, int]:
-        """Vectorized batch evaluation for M targets."""
         targets = np.asarray(targets, dtype=np.float64)
         M = targets.shape[0]
         results = np.empty(M, dtype=np.float64)
@@ -198,10 +150,6 @@ def direct_nbody_potential(
     targets: np.ndarray,
     softening: float = 1e-6,
 ) -> np.ndarray:
-    """Exact O(M * N) direct pairwise potential summation."""
-    # targets: (M, d), sources: (N, d)
-    # diffs: (M, N, d)
     diffs = targets[:, np.newaxis, :] - sources[np.newaxis, :, :]
     dists = np.linalg.norm(diffs, axis=-1) + softening
-    # potentials: (M,)
     return np.sum(masses[np.newaxis, :] / dists, axis=1)

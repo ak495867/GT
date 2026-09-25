@@ -1,20 +1,6 @@
-"""
-Command-Line Interface (CLI) for Gabriel Transform (GT) 2.0.
-
-Usage:
-    python -m gabriel_transform.cli info
-    python -m gabriel_transform.cli benchmark [--suite all|scaling|advanced|multidomain]
-    python -m gabriel_transform.cli visualize
-"""
-
 import sys
 import argparse
-import numpy as np
-
 import gabriel_transform
-from gabriel_transform.core import GabrielTransform
-from gabriel_transform.eytzinger import EytzingerGabrielHornTree
-from gabriel_transform.spatial_2d import GabrielTransform2D
 
 
 def cmd_info(args):
@@ -24,15 +10,16 @@ def cmd_info(args):
     print("Inspired by Evangelista Torricelli's Horn Paradox (1644)")
     print("=" * 65)
     print("Modules Available:")
-    print("  - core.py         : 1D Discrete Gabriel Transform & Horn Profiles")
-    print("  - tree.py         : Adaptive Gabriel Horn Tree with O(log log n) Skips")
-    print("  - eytzinger.py    : Flat Contiguous Memory Buffer (Hardware Speedup)")
-    print("  - spatial_2d.py   : 2D Spatial & Image Transform (Quadtree Funnel)")
-    print("  - attention.py    : Gabriel Attention for Long-Context Transformers")
-    print("  - spectral.py     : Spectral Chebyshev & Legendre Polynomial Horns")
-    print("  - streaming.py    : Real-Time Dynamic Dyadic Ingestion Stream")
-    print("  - multipole.py    : Gabriel Fast Multipole N-Body Potential Engine")
-    print("  - operators.py    : Sublinear Point, Range, and Convolve Operators")
+    print("  - core/         : 1D Discrete Gabriel Transform & Horn Profiles")
+    print("  - trees/        : Adaptive & Hardware-Optimized Eytzinger Trees")
+    print("  - spatial/      : 2D Spatial & Image Transform (Quadtree Funnel)")
+    print("  - neural/       : Gabriel Attention for Long-Context Transformers")
+    print("  - spectral/     : Spectral Chebyshev & Legendre Polynomial Horns")
+    print("  - streaming/    : Real-Time Dynamic Dyadic Ingestion Stream")
+    print("  - physics/      : Gabriel Fast Multipole N-Body Potential Engine")
+    print("  - functional/   : Continuous Faber-Schauder Functional Transform")
+    print("  - operators/    : Sublinear Point, Range, and Convolve Operators")
+    print("  - theory/       : Complexity Models & Verification Checkers")
     print("=" * 65)
 
 
@@ -75,9 +62,11 @@ def cmd_visualize(args):
     print("Generating all visualization figures...")
     from scripts.run_visual_demo import run_all_visualizations
     from scripts.run_advanced_visuals import generate_advanced_plots
+    from scripts.generate_full_gallery import generate_master_gallery
 
     run_all_visualizations(".")
     generate_advanced_plots(".")
+    generate_master_gallery(".")
     print("All diagnostic figures generated successfully.")
 
 
@@ -85,11 +74,9 @@ def main():
     parser = argparse.ArgumentParser(description="Gabriel Transform (GT) CLI")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
-    # info
     p_info = subparsers.add_parser("info", help="Show system info and capabilities")
     p_info.set_defaults(func=cmd_info)
 
-    # benchmark
     p_bench = subparsers.add_parser("benchmark", help="Run benchmark suites")
     p_bench.add_argument(
         "--suite",
@@ -99,7 +86,6 @@ def main():
     )
     p_bench.set_defaults(func=cmd_benchmark)
 
-    # visualize
     p_vis = subparsers.add_parser("visualize", help="Generate all plots")
     p_vis.set_defaults(func=cmd_visualize)
 

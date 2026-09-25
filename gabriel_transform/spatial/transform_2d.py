@@ -1,24 +1,9 @@
-"""
-2D Gabriel Transform (2D-GT) for Spatial Fields, Matrices, and Images.
-
-Extends the Gabriel Horn multiscale formalization to 2D domains:
-    I = I_0 + D_1 + D_2 + ... + D_{K-1} + R_K
-where each 2D detail slice satisfies the Frobenius norm bound:
-    ||D_k||_F <= C * q^k,   0 < q < 1
-enabling:
-- Sublinear spatial pixel queries: O(log N + log(1/eps))
-- Sublinear bounding box integration
-- Progressive 2D image compression and rate-distortion pruning
-"""
-
 from typing import List, Optional, Tuple
 import numpy as np
-from gabriel_transform.core import HornProfile, GeometricHornProfile
+from gabriel_transform.core.profiles import HornProfile, GeometricHornProfile
 
 
 class Gabriel2DRepresentation:
-    """Stores a 2D spatial field decomposed into Gabriel Horn multiscale levels."""
-
     def __init__(
         self,
         coarse_base: np.ndarray,
@@ -46,7 +31,6 @@ class Gabriel2DRepresentation:
         return float(orig_size) / max(1, self.total_stored_coefficients())
 
     def reconstruct(self, epsilon: Optional[float] = None, max_level: Optional[int] = None) -> np.ndarray:
-        """Reconstruct full 2D image/matrix up to tolerance epsilon or max_level."""
         k_limit = self.num_levels
         if epsilon is not None and epsilon > 0.0:
             k_limit = min(k_limit, self.profile.required_depth(epsilon))
@@ -60,10 +44,6 @@ class Gabriel2DRepresentation:
         return rec
 
     def query_pixel(self, r: int, c: int, epsilon: Optional[float] = None) -> Tuple[float, int]:
-        """
-        Sublinear point query of pixel (r, c) without decoding the full image!
-        Complexity: O(log N + log(1/eps)) operations.
-        """
         H, W = self.shape
         if not (0 <= r < H and 0 <= c < W):
             raise IndexError(f"Pixel ({r}, {c}) out of bounds for shape {self.shape}")
@@ -86,7 +66,6 @@ class Gabriel2DRepresentation:
 
     @staticmethod
     def _sample_bilinear(arr: np.ndarray, norm_r: float, norm_c: float) -> float:
-        """O(1) bilinear interpolation of 2D array at normalized coordinates [0, 1] x [0, 1]."""
         H, W = arr.shape
         if H == 1 and W == 1:
             return float(arr[0, 0])
@@ -117,7 +96,6 @@ class Gabriel2DRepresentation:
 
     @staticmethod
     def _upsample_2d(arr: np.ndarray, target_shape: Tuple[int, int]) -> np.ndarray:
-        """Upsample 2D array to target_shape using bilinear interpolation."""
         orig_h, orig_w = arr.shape
         target_h, target_w = target_shape
         if (orig_h, orig_w) == (target_h, target_w):
@@ -126,11 +104,9 @@ class Gabriel2DRepresentation:
         r_grid = np.linspace(0.0, 1.0, target_h)
         c_grid = np.linspace(0.0, 1.0, target_w)
 
-        # Bilinear interpolation
         orig_r = np.linspace(0.0, 1.0, orig_h)
         orig_c = np.linspace(0.0, 1.0, orig_w)
 
-        # Fast 2D interpolation using separable 1D interp
         interp_cols = np.empty((orig_h, target_w), dtype=np.float64)
         for i in range(orig_h):
             interp_cols[i] = np.interp(c_grid, orig_c, arr[i])
@@ -142,7 +118,6 @@ class Gabriel2DRepresentation:
         return out
 
     def prune_to_tolerance(self, epsilon: float) -> "Gabriel2DRepresentation":
-        """Prunes 2D horn levels whose cumulative residual is <= epsilon."""
         req_k = self.profile.required_depth(epsilon)
         pruned_levels = self.levels[:req_k]
         rem_norm = self.profile.cumulative_tail(len(pruned_levels))
@@ -156,11 +131,6 @@ class Gabriel2DRepresentation:
 
 
 class GabrielTransform2D:
-    """
-    2D Gabriel Transform engine.
-    Decomposes an image or 2D field into quad-hierarchical horn levels.
-    """
-
     def __init__(
         self,
         q: float = 0.5,
@@ -172,10 +142,6 @@ class GabrielTransform2D:
         self.max_levels = max_levels
 
     def forward(self, img: np.ndarray, epsilon: Optional[float] = None) -> Gabriel2DRepresentation:
-        """
-        Forward 2D Gabriel Transform.
-        Decomposes 2D matrix into progressive geometric horn slices.
-        """
         arr = np.asarray(img, dtype=np.float64)
         if arr.ndim != 2:
             raise ValueError(f"Input must be a 2D array, got shape {arr.shape}")
@@ -186,7 +152,6 @@ class GabrielTransform2D:
         k_limit = self.max_levels if self.max_levels is not None else max_possible_levels
         k_limit = max(1, min(k_limit, max_possible_levels))
 
-        # Base coarse resolution (e.g. 2x2 or coarsest grid)
         base_h = max(1, H // (2 ** k_limit))
         base_w = max(1, W // (2 ** k_limit))
         coarse_base = self._downsample_2d(arr, (base_h, base_w))
@@ -212,7 +177,6 @@ class GabrielTransform2D:
             detail_norm = float(np.linalg.norm(detail))
             allowed_bound = self.profile.envelope(k)
 
-            # Funnel contraction
             if detail_norm > allowed_bound and allowed_bound > 0:
                 detail *= (allowed_bound / detail_norm)
 
@@ -239,13 +203,11 @@ class GabrielTransform2D:
 
     @staticmethod
     def _downsample_2d(arr: np.ndarray, target_shape: Tuple[int, int]) -> np.ndarray:
-        """Downsample 2D array using block averaging."""
         H, W = arr.shape
         th, tw = target_shape
         if (H, W) == (th, tw):
             return arr.copy()
 
-        # Split into blocks and average
         row_chunks = np.array_split(arr, th, axis=0)
         out = np.empty((th, tw), dtype=np.float64)
         for r_idx, r_chunk in enumerate(row_chunks):

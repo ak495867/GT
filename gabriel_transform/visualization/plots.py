@@ -1,28 +1,13 @@
-"""
-Visualization tools for Gabriel Transform (GT).
-
-Generates visual plots illustrating:
-- The classical Gabriel's Horn (Torricelli's Trumpet) envelope and volume convergence.
-- Multiscale level energy decomposition vs geometric bound C * q^k.
-- Reconstruction accuracy vs scale depth.
-- Sublinear query complexity scaling: O(log(1/eps)) and O(log n).
-"""
-
-from typing import List, Optional
+from typing import List
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")  # Non-interactive backend for headless file generation
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
 def plot_gabriel_horn_geometry(save_path: str = "gabriel_horn_geometry.png"):
-    """
-    Plots Torricelli's Trumpet (Gabriel's Horn) 3D surface / 2D profile
-    showing how radius funnels down as 1/x while volume converges to pi.
-    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
-    # 1. 2D Horn Profile
     x = np.linspace(1.0, 10.0, 500)
     y_upper = 1.0 / x
     y_lower = -1.0 / x
@@ -36,9 +21,6 @@ def plot_gabriel_horn_geometry(save_path: str = "gabriel_horn_geometry.png"):
     ax1.grid(True, linestyle="--", alpha=0.6)
     ax1.legend(loc="upper right")
 
-    # 2. Volume vs Surface Area Paradox
-    # Volume V(X) = pi * (1 - 1/X) -> pi
-    # Area A(X) ~ 2*pi * ln(X) -> infinity
     vol = np.pi * (1.0 - 1.0 / x)
     area = 2.0 * np.pi * np.log(x)
 
@@ -63,13 +45,8 @@ def plot_multiscale_decomposition(
     q: float,
     save_path: str = "gabriel_decomposition.png",
 ):
-    """
-    Plots the multiscale decomposition, comparing original signal, reconstructed signal,
-    and the geometric energy decay per level.
-    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-    # Signal Reconstruction
     ax1.plot(original, "k-", alpha=0.5, linewidth=2, label="Original Signal $X$")
     ax1.plot(reconstructed, "r--", linewidth=1.5, label="Gabriel Reconstruction $\\hat{X}_K$")
     ax1.set_title("Signal Reconstruction", fontsize=13, fontweight="bold")
@@ -78,7 +55,6 @@ def plot_multiscale_decomposition(
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend()
 
-    # Geometric Energy Bound
     k_vals = np.arange(len(level_norms))
     c_bound = level_norms[0] if level_norms else 1.0
     geo_bound = [c_bound * (q ** k) for k in k_vals]
@@ -104,12 +80,8 @@ def plot_complexity_scaling(
     eps_steps: List[int],
     save_path: str = "gabriel_complexity_scaling.png",
 ):
-    """
-    Plots empirical scaling vs theoretical O(log n) and O(log(1/eps)).
-    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-    # 1. T(n) vs n: O(log n) vs O(n)
     ax1.plot(ns, naive_steps, "r-o", linewidth=2, label="Naive Linear Scan $O(n)$")
     ax1.plot(ns, gt_steps, "b-s", linewidth=2, label="Gabriel Horn Query $O(\\log n)$")
     ax1.set_title("Query Scaling vs Input Size $n$", fontsize=13, fontweight="bold")
@@ -118,7 +90,6 @@ def plot_complexity_scaling(
     ax1.grid(True, linestyle="--", alpha=0.6)
     ax1.legend()
 
-    # 2. T(eps) vs eps: O(log(1/eps))
     log_inv_eps = [np.log10(1.0 / e) for e in epsilons]
     ax2.plot(log_inv_eps, eps_steps, "g-^", linewidth=2, markersize=7, label="Empirical Levels Evaluated")
     ax2.set_title("Query Scaling vs Accuracy $\\epsilon$ ($O(\\log(1/\\epsilon))$)", fontsize=13, fontweight="bold")
